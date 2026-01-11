@@ -1,26 +1,34 @@
-# Claude Code 工作流 v2.0
+# Claude Code Workflow v2.0
 
-一套优化 Claude Code CLI 工作效率的规则和工具配置。
+A set of rules and tool configurations to optimize Claude Code CLI workflow efficiency.
 
-## 功能特性
+## Features
 
-- **任务分级系统**：自动判断任务复杂度（Level 0/1/2），选择合适的执行流程
-- **循环执行机制**：Level 2 复杂任务使用 ralph-loop 自动迭代直到完成
-- **自动查文档**：通过 Context7 MCP 主动获取第三方库最新文档
-- **PR 审查工具**：多角度代码审查（安全、类型设计、测试覆盖等）
-- **代码简化工具**：长会话后自动清理和简化代码
-- **项目上下文管理**：持久化项目配置和已验证/已证伪的方案
+- **Task Level System**: Automatically determine task complexity (Level 0/1/2) and select appropriate workflow
+- **Loop Execution**: Level 2 complex tasks use ralph-loop for automatic iteration until completion
+- **Auto Documentation**: Proactively fetch third-party library docs via Context7 MCP
+- **PR Review Tools**: Multi-angle code review (security, type design, test coverage, etc.)
+- **Code Simplifier**: Auto cleanup and simplify code after long sessions
+- **Project Context**: Persist project config and verified/disproven approaches
 
-## 安装步骤
+## Key Improvements in v2.0
 
-### 1. 添加插件市场
+- **English Rules**: All rules written in English for better LLM recognition
+- **Chinese Response**: Responses to user always in Chinese (用户交互使用中文)
+- **Tool Trigger Rules**: Explicit rules for Context7, pr-review-toolkit, code-simplifier, ralph-wiggum
+- **Pre-Commit Checklist**: Mandatory checklist before every git commit
+- **Startup Checklist**: Session startup checklist for consistency
+
+## Installation
+
+### 1. Add Plugin Marketplace
 
 ```bash
 claude plugin marketplace add anthropics/claude-code
 claude plugin marketplace add anthropics/claude-plugins-official
 ```
 
-### 2. 安装插件
+### 2. Install Plugins
 
 ```bash
 claude plugin install ralph-wiggum@claude-code-plugins
@@ -29,95 +37,128 @@ claude plugin install pr-review-toolkit@claude-plugins-official
 claude plugin install code-simplifier@claude-plugins-official
 ```
 
-### 3. 配置 MCP 服务
+### 3. Configure MCP Service
 
 ```bash
 claude mcp add -s user context7 npx @upstash/context7-mcp@latest
 ```
 
-### 4. 验证 MCP 配置
+### 4. Verify MCP Configuration
 
 ```bash
 claude mcp list
 ```
 
-### 5. 复制配置文件
+### 5. Copy Configuration Files
 
-将本仓库的文件复制到你的 Claude 配置目录：
+Copy files from this repository to your Claude configuration directory:
 
 ```
 # Windows
-C:\Users\<用户名>\.claude\CLAUDE.md
-C:\Users\<用户名>\.claude\commands\init.md
-C:\Users\<用户名>\.claude\commands\riper.md
+C:\Users\<username>\.claude\CLAUDE.md
+C:\Users\<username>\.claude\startup-checklist.md
+C:\Users\<username>\.claude\commands\init.md
+C:\Users\<username>\.claude\commands\riper.md
 
 # Mac/Linux
 ~/.claude/CLAUDE.md
+~/.claude/startup-checklist.md
 ~/.claude/commands/init.md
 ~/.claude/commands/riper.md
 ```
 
-## 文件结构
+## File Structure
 
 ```
 .
-├── CLAUDE.md                    # 核心工作流规则（全局）
-├── README.md                    # 本说明文件
+├── CLAUDE.md                    # Core workflow rules (English)
+├── README.md                    # This file
+├── startup-checklist.md         # Session startup checklist
 └── .claude/
     └── commands/
-        ├── init.md              # /init 命令 - 初始化会话
-        └── riper.md             # /riper 命令 - 激活工程协议
+        ├── init.md              # /init command - Initialize session
+        └── riper.md             # /riper command - Activate engineering protocol
 ```
 
-## 可用命令
+## Available Commands
 
-| 命令 | 作用 |
-|------|------|
-| /init | 初始化会话，检测项目 |
-| /riper | 激活工程协议 |
-| /ralph-wiggum:ralph-loop <任务> | 启动循环执行 |
-| /ralph-wiggum:cancel-ralph | 取消循环 |
-| /pr-review-toolkit:review-pr | PR 审查 |
-| /code-simplifier | 代码简化 |
+| Command | Purpose |
+|---------|---------|
+| /init | Initialize session, detect project |
+| /riper | Activate engineering protocol |
+| /ralph-wiggum:ralph-loop <task> | Start loop execution |
+| /ralph-wiggum:cancel-ralph | Cancel loop |
+| /pr-review-toolkit:review-pr | PR review |
+| /code-simplifier | Code simplification |
 
-## 使用方法
+## Usage
 
-### 启动会话
+### Start Session
 
-在任何项目目录中执行：
+In any project directory:
 
 ```
 /init
 ```
 
-这会：
-1. 检测项目技术栈
-2. 检查是否有 project-context.md
-3. 报告系统环境和就绪状态
+This will:
+1. Detect project tech stack
+2. Check for project-context.md
+3. Report system environment and ready state
 
-### 任务分级
+### Task Levels
 
-| Level | 特征 | 流程 |
-|-------|------|------|
-| 0 | 单文件、<10行、无逻辑变化 | 直接执行 |
-| 1 | 多文件、有逻辑变化、边界明确 | 声明计划 → 执行 → 验证 |
-| 2 | 跨模块、架构变化 | 完整规划 → 用户确认 → ralph-loop |
+| Level | Characteristics | Workflow |
+|-------|-----------------|----------|
+| 0 | Single file, <10 lines, no logic change | Execute directly |
+| 1 | Multi-file, logic changes, clear scope | Declare plan → Execute → Verify |
+| 2 | Cross-module, architecture change | Full planning → User confirm → ralph-loop |
 
-### 激活工程协议
+### Activate Engineering Protocol
 
-需要深度分析和多角色思维时：
+When deep analysis and multi-role thinking is needed:
 
 ```
 /riper
 ```
 
-## 核心规则
+## Core Rules
 
-1. **先读后做** - 修改文件前必须先读取
-2. **先查后建** - 创建前检查是否已存在
-3. **验证关闭** - 每次修改后验证结果
-4. **失败不重复** - 不再尝试已证伪的方案
-5. **只改要求的** - 不"顺便优化"其他代码
+1. **Read Before Edit** - MUST read file before modifying
+2. **Check Before Create** - Check if exists before creating
+3. **Verify After Change** - Verify results after modification
+4. **No Repeated Failures** - Never retry disproven approaches
+5. **Only Change Requested** - Never "improve" other code incidentally
+
+## Tool Trigger Rules
+
+| Trigger | Tool | Action |
+|---------|------|--------|
+| Third-party library | Context7 | Query BEFORE coding |
+| API error | Context7 | Query IMMEDIATELY |
+| "review", "审查" | pr-review-toolkit | Invoke |
+| Level 2 + >100 lines | code-simplifier | Suggest |
+| Level 2 task | ralph-wiggum | Use ralph-loop |
+
+## Pre-Commit Checklist
+
+Before every git commit:
+- [ ] Does project-context.md need update?
+- [ ] Should code-simplifier be suggested?
+- [ ] Have all modified files been declared?
+- [ ] Has code been verified to run?
+
+## Changelog
+
+### v2.0 (2026-01-12)
+- Rewrote all rules in English for better recognition
+- Added tool trigger rules section
+- Added pre-commit checklist
+- Added startup checklist file
+- Maintained Chinese response requirement
+
+### v1.0
+- Initial Chinese version
 
 ## License
 

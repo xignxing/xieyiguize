@@ -1,207 +1,247 @@
-# Claude 工作流 v2.0
+# Claude Workflow v2.0
 
-> 此工作流旨在让 Claude 最大程度发挥作用，而非限制能力
-
----
-
-## 会话启动检查（每次会话开始时必须执行）
-
-当用户开始新会话时，我必须：
-1. 检测当前目录是否有 project-context.md
-2. 如果没有，主动询问："检测到这是新项目（没有 project-context.md）。要初始化项目配置吗？"
-3. 如果有，读取并加载项目上下文
-
-这是强制规则，不能跳过。
+> This workflow maximizes Claude's effectiveness, not restricts capabilities.
 
 ---
 
-## 第一部分：工具环境
+## ⚠️ CRITICAL: Language Rules
 
-### 全局插件
-
-| 插件 | 作用 | 使用时机 |
-|------|------|----------|
-| ralph-wiggum | 循环执行复杂任务 | Level 2 任务默认使用 |
-| security-guidance | 安全检查 | 持续运行 |
-| pr-review-toolkit | PR 多角度审查 | 准备提 PR 时 |
-| code-simplifier | 代码清理简化 | 长会话/大量改动后 |
-
-### 全局 Hooks
-
-- **PreToolUse (Edit|Write)**: 阻止在 main/master 分支直接编辑
-
-### MCP 服务
-
-- **Context7**: 获取第三方库最新文档
+**MUST respond to user in Chinese (中文回复)**
+- All responses, explanations, and communications MUST be in Chinese
+- Code comments follow project convention (usually English)
+- This rule applies regardless of the language used in this instruction file
 
 ---
 
-## 第二部分：任务流程
+## ⚠️ CRITICAL: Session Startup Check (MANDATORY - DO NOT SKIP)
 
-### 2.1 任务分级（Claude 自动判断，用户可否决）
+At the start of EVERY new session, I MUST:
+1. Check if `project-context.md` exists in current directory
+2. If NOT exists → Ask: "Detected new project (no project-context.md). Initialize project config?"
+3. If EXISTS → MUST read and load project context BEFORE any action
 
-| Level | 典型特征 | 流程 |
-|-------|----------|------|
-| 0 | 单文件、<10行、无逻辑变化（改变量名、修 typo） | 直接执行 |
-| 1 | 多文件、有逻辑变化、边界明确（实现函数、修 bug） | 读文件 → 声明计划 → 执行 → 验证 |
-| 2 | 跨模块、架构变化、需要反复验证（完整功能、重构） | 完整规划 → 用户确认 → ralph-loop |
+**STOP: Confirm this check is completed before proceeding with any task.**
 
-### 2.2 ralph-loop 规则
-
-**启用条件**：
-- Level 2 任务默认使用
-- Level 1 任务用户可主动要求
-
-**暂停条件（运行中遇到以下情况暂停并询问用户）**：
-- 需要安装新依赖
-- 需要修改配置文件（package.json, tsconfig.json 等）
-- 遇到需要用户决策的设计问题
-- 达到迭代次数的 50%（第 10 次）时报告一次进度
-
-**安全阀**：
-- 默认最大 20 次迭代
-- 超过后暂停，询问用户是否继续
-
-**完成条件**：
-- 有测试 → 所有相关测试通过
-- 无测试 → 用户指定条件，或 Claude 提议 + 用户确认
-
-### 2.3 失败处理机制
-
-1. 记录失败的方法和原因
-2. 维护「已排除方案」列表
-3. NEVER 再次尝试已证伪的方案
-4. 3次失败后停下来重新分析根因
+This is a MANDATORY rule. NEVER skip.
 
 ---
 
-## 第三部分：工具使用规则
+## Part 1: Tool Environment
 
-### 3.1 Context7 使用规则
+### Global Plugins
 
-**主动查询（任务开始时）**：
-- Level 1/2 任务涉及第三方库 → 先查文档再写代码
-- 不熟悉的库 → 先查再用
-- 用户提到"最新"、"新版本"、"升级" → 查文档
+| Plugin | Purpose | When to Use |
+|--------|---------|-------------|
+| ralph-wiggum | Loop execution for complex tasks | DEFAULT for Level 2 tasks |
+| security-guidance | Security checks | Always running |
+| pr-review-toolkit | Multi-angle PR review | When preparing PR |
+| code-simplifier | Code cleanup and simplification | After long sessions / major changes |
 
-**被动查询（遇到问题时）**：
-- 编译/运行报错涉及库 API → 立即查文档
-- 报错包含以下关键词时必须触发：
-  - Module not found / Cannot find module
-  - xxx is not a function
-  - xxx is deprecated
-  - No exported member
-  - TypeError / AttributeError
-- 不确定参数/返回值 → 查文档确认
+### Global Hooks
 
-**不需要查询**：
-- 纯业务逻辑代码
-- 语言内置功能
-- 已经查过的同一个库（同一会话内）
+- **PreToolUse (Edit|Write)**: Block direct edits on main/master branch
 
-**查询失败处理**：
-- 找到文档 → 使用最新信息
-- 没找到 → 用现有知识继续，告知用户"文档未找到，使用已有知识"
-- 不要因为查不到就卡住
+### MCP Services
 
-**核心原则**：不要等用户要求，不要等失败多次，主动查、早查。
-
-### 3.2 工具触发规则
-
-**pr-review-toolkit（强制）**：
-用户意图是「代码质量审查」时，MUST 调用 `/pr-review-toolkit:review-pr`：
-- 明确审查请求："帮我审查"、"review 一下"、"检查代码质量"
-- PR 相关操作："准备提 PR"、"要合并了"、"merge 前检查"
-
-例外（可直接回答）：
-- 单点问题："这个变量名对不对"、"这行有问题吗"
-- 状态询问："PR 状态怎么样"
-
-**code-simplifier（主动建议）**：
-以下情况主动建议（非强制询问）：
-- Level 2 任务完成 + 新增代码 > 100 行
-- ralph-loop 结束 + 修改文件 > 3 个
-- 用户说"简化"、"清理"、"cleanup" → 直接调用
-
-**Context7（保持不变）**：
-涉及第三方库时主动查询，遇到 API 报错立即查询。
+- **Context7**: Fetch latest documentation for third-party libraries
 
 ---
 
-## 第四部分：项目规范
+## Part 2: Task Workflow
 
-### 4.1 新项目初始化流程
+### 2.1 Task Levels (Claude determines, user can override)
 
-当检测到项目没有 project-context.md 时，主动询问：
+| Level | Characteristics | Workflow |
+|-------|-----------------|----------|
+| 0 | Single file, <10 lines, no logic change (rename, typo fix) | Execute directly |
+| 1 | Multi-file, logic changes, clear scope (implement function, fix bug) | Read → Declare plan → Execute → Verify |
+| 2 | Cross-module, architecture change, needs iteration (full feature, refactor) | Full planning → User confirm → ralph-loop |
 
-    检测到这是新项目（没有 project-context.md）。
-    要初始化项目配置吗？我会：
-    1. 创建 project-context.md
-    2. 检测技术栈并建议安装 LSP
-    3. 创建项目级 .claude/settings.json
+**MUST declare task level in response before starting work.**
 
-    是/否？
+### 2.2 ralph-loop Rules
 
-**技术栈检测规则**：
-- 检测到 tsconfig.json → 提示安装 typescript-lsp
-- 检测到 pyproject.toml / requirements.txt → 提示安装 pyright-lsp
-- 检测到 go.mod → 提示安装 gopls-lsp
-- 检测到 Cargo.toml → 提示安装 rust-analyzer-lsp
+**Activation conditions:**
+- Level 2 tasks: MUST use by DEFAULT
+- Level 1 tasks: Use when user requests
 
-### 4.2 知识库更新时机
+**PAUSE conditions (stop and ask user when):**
+- Need to install new dependencies
+- Need to modify config files (package.json, tsconfig.json, etc.)
+- Design decisions required
+- At 50% of max iterations (10th): Report progress
 
-有重要发现时 Claude 建议更新，用户确认后执行：
-- 新的正确方法被验证
-- 新的错误方法被证伪
-- 项目配置发生变化
+**Safety valve:**
+- Default max: 20 iterations
+- After max: PAUSE and ask user to continue
 
-### 4.3 端口规范
+**Completion conditions:**
+- Has tests → All related tests pass
+- No tests → User-specified condition, or Claude proposes + user confirms
 
-推荐使用 9700+ 范围的端口，避免与常用服务冲突。
-常见冲突端口（避免使用）：3000, 5173, 5174, 8080, 8000, 3306, 5432
+### 2.3 Failure Handling
+
+1. Record failed approach and reason
+2. Maintain "excluded approaches" list
+3. NEVER retry a disproven approach
+4. After 3 failures → STOP and re-analyze root cause
 
 ---
 
-## 第五部分：核心规则
+## Part 3: Tool Trigger Rules
 
-### 5.1 先读后做
-修改任何文件之前，MUST 先用 Read 工具读取该文件。
-NEVER 基于记忆或假设修改文件。
+### 3.1 Context7 (MCP Service)
 
-### 5.2 先查后建
-创建任何文件/函数/组件之前，MUST 先用 Glob/Grep 检查是否已存在。
-NEVER 重复创建或覆盖现有代码。
+**MUST query BEFORE writing code when:**
+- Task involves third-party libraries
+- User mentions "latest", "new version", "upgrade"
+- Unfamiliar library usage
 
-### 5.3 验证关闭
-每次代码修改后，MUST 验证结果：
-- 运行相关命令确认无报错
-- 不要假设修改成功
+**MUST query IMMEDIATELY when encountering:**
+- "Module not found" / "Cannot find module"
+- "xxx is not a function"
+- "xxx is deprecated"
+- "No exported member"
+- TypeError / AttributeError
 
-### 5.4 清理临时文件
-任务结束时清理所有临时文件：
-- test-*.js、debug-*.js、temp-*.js
-- temp/、tmp/ 目录下的文件
-- .bak、.backup 备份文件
+**NO need to query:**
+- Pure business logic code
+- Language built-in features
+- Same library already queried in this session
 
-### 5.5 只改要求的部分
-- 只修改被明确要求修改的代码
-- NEVER「顺便优化」其他代码
-- NEVER 添加未被要求的功能
+**Query failure handling:**
+- Found docs → Use latest info
+- Not found → Continue with existing knowledge, inform user "Docs not found, using existing knowledge"
+- NEVER get stuck because docs not found
 
-### 5.6 修改透明度
-- 修改前声明将要修改的文件列表
-- 修改后报告实际改动内容
-- 建议原子提交（每个提交只包含一个逻辑单元）
+**Core principle:** Don't wait for user request, don't wait for multiple failures. Query proactively and early.
 
-### 5.7 系统环境识别
-启动时识别当前系统环境：
-- Windows: 使用 Windows 兼容命令
-- Mac/Linux: 使用 Unix 命令
+### 3.2 pr-review-toolkit (MANDATORY)
 
-### 5.8 Windows 命令兼容性
-当前系统是 Windows，MUST 使用 Windows 兼容命令：
-- 用 `dir` 而不是 `ls`
-- 用 `type` 而不是 `cat`
-- 用 `copy` 而不是 `cp`
-- 用 `del` 而不是 `rm`
-- 用 `cd` 时不要用 `cd /d`（在 bash 环境里）
+**MUST invoke `/pr-review-toolkit:review-pr` when user intent is code review:**
+- Explicit review request: "review", "check quality", "审查", "review 一下"
+- PR operations: "preparing PR", "before merge", "要合并了"
+
+**Exception (can answer directly):**
+- Single point questions: "Is this variable name correct?"
+- Status inquiry: "PR status?"
+
+### 3.3 code-simplifier (PROACTIVE SUGGESTION)
+
+**MUST suggest (not force) when:**
+- Level 2 task completed + new code > 100 lines
+- ralph-loop finished + modified files > 3
+- User says "simplify", "cleanup", "清理" → Invoke directly
+
+### 3.4 ralph-wiggum (DEFAULT FOR LEVEL 2)
+
+**MUST use ralph-loop for:**
+- All Level 2 tasks (cross-module, architecture changes)
+- Level 1 tasks when user requests
+
+**PAUSE conditions during ralph-loop:**
+- Need to install new dependencies
+- Need to modify config files
+- Design decisions required
+- At 50% of max iterations (report progress)
+
+---
+
+## Part 4: Project Standards
+
+### 4.1 New Project Initialization
+
+When project has no `project-context.md`, proactively ask:
+
+```
+Detected new project (no project-context.md).
+Initialize project config? I will:
+1. Create project-context.md
+2. Detect tech stack and suggest LSP installation
+3. Create project-level .claude/settings.json
+
+Yes/No?
+```
+
+**Tech stack detection rules:**
+- tsconfig.json → Suggest typescript-lsp
+- pyproject.toml / requirements.txt → Suggest pyright-lsp
+- go.mod → Suggest gopls-lsp
+- Cargo.toml → Suggest rust-analyzer-lsp
+
+### 4.2 Knowledge Base Update Timing
+
+**MUST suggest update (user confirms before executing) when:**
+- New correct method verified
+- New incorrect method disproven
+- Project config changed
+
+### 4.3 Port Convention
+
+Recommend 9700+ range to avoid conflicts.
+Common conflict ports (avoid): 3000, 5173, 5174, 8080, 8000, 3306, 5432
+
+---
+
+## Part 5: Core Rules
+
+### 5.1 Read Before Edit
+**MUST** use Read tool to read file BEFORE modifying.
+**NEVER** modify based on memory or assumptions.
+
+### 5.2 Check Before Create
+**MUST** use Glob/Grep to check if file/function exists BEFORE creating.
+**NEVER** duplicate or overwrite existing code.
+
+### 5.3 Verify After Change
+**MUST** verify results after every code modification:
+- Run relevant commands to confirm no errors
+- NEVER assume modification succeeded
+
+### 5.4 Clean Temp Files
+At task end, clean all temp files:
+- test-*.js, debug-*.js, temp-*.js
+- Files in temp/, tmp/ directories
+- .bak, .backup files
+
+### 5.5 Only Change What's Requested
+- Only modify explicitly requested code
+- **NEVER** "optimize" other code incidentally
+- **NEVER** add unrequested features
+
+### 5.6 Modification Transparency
+- **BEFORE editing:** Declare list of files to be modified
+- **AFTER editing:** Report actual changes made
+- Recommend atomic commits (one logical unit per commit)
+
+### 5.7 System Environment Detection
+At startup, identify current system environment:
+- Windows: Use Windows-compatible commands
+- Mac/Linux: Use Unix commands
+
+### 5.8 Windows Command Compatibility
+When system is Windows, **MUST** use Windows-compatible commands:
+- Use `dir` instead of `ls`
+- Use `type` instead of `cat`
+- Use `copy` instead of `cp`
+- Use `del` instead of `rm`
+- Don't use `cd /d` in bash environment
+
+---
+
+## Part 6: Pre-Commit Checklist
+
+**⚠️ CRITICAL: MUST complete before EVERY git commit**
+
+### Checklist:
+□ 1. Section 4.2 - Does project-context.md need update?
+□ 2. Section 3.3 - Should code-simplifier be suggested? (Level 2 + >100 lines or >3 files)
+□ 3. Section 5.6 - Have I declared all modified files?
+□ 4. Section 5.3 - Have I verified code runs without errors?
+
+**STOP: Complete this checklist before executing git commit.**
+
+---
+
+*Version: 2.0 (English)*
+*Last updated: 2026-01-12*
