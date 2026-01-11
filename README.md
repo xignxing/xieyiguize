@@ -69,6 +69,17 @@ C:\Users\<用户名>\.claude\commands\riper.md
         └── riper.md             # /riper 命令 - 激活工程协议
 ```
 
+## 可用命令
+
+| 命令 | 作用 |
+|------|------|
+| /init | 初始化会话，检测项目 |
+| /riper | 激活工程协议 |
+| /ralph-wiggum:ralph-loop <任务> | 启动循环执行 |
+| /ralph-wiggum:cancel-ralph | 取消循环 |
+| /pr-review-toolkit:review-pr | PR 审查 |
+| /code-simplifier | 代码简化 |
+
 ## 使用方法
 
 ### 启动会话
